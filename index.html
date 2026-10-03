@@ -694,7 +694,7 @@ function bindHint(hintFns){
   hintPanel(hintFns);
 }
 function calcStars(base){
-  const pen=Q.mode==="pref"?(Q.hints>=6?2:Q.hints>=3?1:0):Math.min(2,Q.hints>=3?2:Q.hints>=1?1:0);
+  const pen=Q.mode==="pref"?(Q.hints>=4?2:Q.hints>=2?1:0):Math.min(2,Q.hints>=3?2:Q.hints>=1?1:0);
   let s=base-pen-(Q.tries>0?1:0);
   return Math.max(1,s);
 }
@@ -721,9 +721,6 @@ function askCountry(){
   const nbTxt=nbHint(d);
   const hints=[
     {html:()=>`<b>せつめい：</b>${mk(d.blurb)}`},
-    {html:()=>`<b>🏛 文明・歴史：</b>${mk(d.hist)}`},
-    {html:()=>`<b>🚩 国旗：</b><span class="cflag">${d.flag||"🏳️"}</span><br>${mk(d.flagtxt)}`},
-    {html:()=>`<b>🗣 ことば・お金：</b>${mk(d.lang)}`},
     {html:()=>`<b>🧭 となりの国：</b>${mk(nbTxt)}`},
     {html:()=>`<b>🌍 地域：</b>${d.cont}の${d.region}（地図の色つきの場所だよ）`, apply:()=>regionBg(d.region)},
     {html:()=>`<b>⭐ 首都：</b>${mk(d.cap)}`},
@@ -731,6 +728,9 @@ function askCountry(){
   $("#panel").innerHTML=`<div class="q-lab"><span>${Q.i+1} / ${Q.list.length}</span><span>ここはどこの国？</span></div>
    <div class="q-main">この絵と言葉がヒント！ <small>どこの国かな？ 地図をタッチ👆</small></div>
    <div class="emo">${d.items.map(([e,l])=>`<div class="eb"><b>${e}</b><i>${maskText(l,names)}</i></div>`).join("")}</div>
+   <div class="hint"><b>🚩 国旗：</b><span class="cflag">${d.flag||"🏳️"}</span> ${mk(d.flagtxt)}</div>
+   <div class="hint"><b>🏛 文明・歴史：</b>${mk(d.hist)}</div>
+   <div class="hint"><b>🗣 ことば・お金：</b>${mk(d.lang)}</div>
    <div id="hintBox"></div>
    <div class="btns"><button class="btn hint-b" id="btnHint">💡ヒント</button><button class="btn" id="btnSkip">わからない</button></div>`;
   bindHint(hints);
