@@ -173,7 +173,9 @@ svg.z2 .rvname,svg.z2 .mtname{display:block}
 .layers{flex-wrap:wrap;max-width:calc(100% - 76px)}
 .pref.out{opacity:.45}
 .pref.out.un{fill:#e9eef2}
-.pref.hl{stroke-width:2.6px}
+.pref{vector-effect:none;stroke-width:calc(var(--sw,.8px)*1.2)}
+.pref.un{stroke-width:var(--sw,.8px)}
+.pref.hl{stroke-width:calc(var(--sw,.8px)*2.8)}
 .hit{fill:transparent;cursor:pointer}
 .flagbig{font-size:60px;line-height:1.1;font-family:"Twemoji Country Flags","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .cflag{font-size:34px;font-family:"Twemoji Country Flags","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
@@ -394,10 +396,10 @@ function buildMap(){
     t.textContent = nameOf(c); lblEl[c]=t;
   }
   // 小さな国のタッチ用の丸(ふだんは見えない)
-  for(const c in P){
+  Object.keys(P).sort((a,b)=>D.hit[b][2]-D.hit[a][2]).forEach(c=>{     // 小さい国ほど手前
     const h=D.hit[c];
     if(h[2]<9) hitEl[c]=el("circle",{cx:h[0],cy:h[1],r:0,class:"hit","data-pid":c},gHit);
-  }
+  });
   RIVERS.forEach((r,i)=>{
     const pts=r[7].map(([lo,la])=>proj(lo,la));
     r.pts=pts;
@@ -427,22 +429,30 @@ function applyCont(cont){
   for(const c in prefEl) prefEl[c].setAttribute("class",baseClass(c));
 }
 
+let lastK=0, scalePending=false;
 function setVB(){
   svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const z=FULL.w/vb.w;
   svg.classList.toggle("z2",z>=1.8);
-  updateScaling();
+  // 文字・マーカーの大きさ調整は、拡大率が変わったときだけ、描画の合間に1回行う(ドラッグ中は軽くする)
+  const k=ppu();
+  if(!lastK||Math.abs(k-lastK)/lastK>0.01){
+    if(!scalePending){ scalePending=true; requestAnimationFrame(()=>{ scalePending=false; updateScaling(); }); }
+  }
 }
+window.addEventListener("resize",()=>{ lastK=0; setVB(); });
+window.addEventListener("orientationchange",()=>setTimeout(()=>{ lastK=0; setVB(); },300));
 function updateScaling(){
   const k=ppu(); if(!k||!(k>0.05)) return;
+  lastK=k; svg.style.setProperty('--sw',(1/k).toFixed(3)+'px');
   for(const id in lblEl){
     const t=lblEl[id], o=+t.dataset.fs, f=Math.min(o,11.5/k);
     t.setAttribute("font-size",f.toFixed(2)); t.style.strokeWidth=(f*0.22).toFixed(2);
     t.style.display=(f*k<4.6)?"none":"";
   }
   for(const c in hitEl){
-    const h=D.hit[c], tiny=h[2]*k<22;
-    hitEl[c].setAttribute("r",tiny?(14/k).toFixed(2):0);
+    const h=D.hit[c], tiny=h[2]*k<8;       // 画面で小さすぎる国だけ、タッチ用の小さな丸をつける
+    hitEl[c].setAttribute("r",tiny?(Math.max(6,h[2]*k/2+3)/k).toFixed(2):0);
     hitEl[c].style.pointerEvents=tiny?"":"none";
   }
   const fz=(10.5/k).toFixed(2);
@@ -484,7 +494,7 @@ svg.addEventListener("pointermove",e=>{
   const p=ptrs.get(e.pointerId); if(!p) return;
   const dx=e.clientX-p.x, dy=e.clientY-p.y;
   if(ptrs.size===1){
-    if(tapInfo && !tapInfo.moved && Math.hypot(e.clientX-tapInfo.x,e.clientY-tapInfo.y)>8) tapInfo.moved=true;
+    if(tapInfo && !tapInfo.moved && Math.hypot(e.clientX-tapInfo.x,e.clientY-tapInfo.y)>12) tapInfo.moved=true;
     if(tapInfo && tapInfo.moved){
       const k=ppu(); vb.x-=dx/k; vb.y-=dy/k; clampVB(); setVB();
     }
