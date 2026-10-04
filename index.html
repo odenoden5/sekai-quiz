@@ -352,10 +352,25 @@ function tone(seq){
 }
 const sndOK=()=>tone([[660,.12],[880,.12],[1175,.22]]);
 const sndNG=()=>tone([[220,.18,"square"],[180,.22,"square"]]);
-function say(t){
-  if(!settings.sound||!("speechSynthesis" in window)) return;
-  try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang="ja-JP"; u.rate=.95; speechSynthesis.speak(u);}catch(e){}
+function jaVoice(){
+  try{ const v=speechSynthesis.getVoices().filter(x=>/^ja/i.test(x.lang)); return v.find(x=>/Kyoko|Otoya|O-Ren|Nanami|Google/i.test(x.name))||v[0]||null; }catch(e){ return null; }
 }
+// 文を1つずつ区切って読み上げる(区切るごとに自然な抑揚で終わる)。例: say(["イタリア","正解です"])
+function say(t,delay){
+  if(!settings.sound||!("speechSynthesis" in window)) return;
+  const parts=(Array.isArray(t)?t:[t]).filter(Boolean);
+  try{
+    speechSynthesis.cancel();
+    const go=()=>parts.forEach(p=>{
+      const u=new SpeechSynthesisUtterance(p); u.lang="ja-JP"; u.rate=.95; u.pitch=1;
+      const v=jaVoice(); if(v) u.voice=v;
+      speechSynthesis.speak(u);
+    });
+    if(delay) setTimeout(go,delay); else go();
+  }catch(e){}
+}
+const sayOK=name=>say([name,"正解です"],350);
+const sayNG=name=>say(["答えは、"+name+"です"],250);
 
 /* ===================== 地図 ===================== */
 const svg = $("#map");
@@ -754,7 +769,7 @@ function revealCountry(id,good){
   const [cx,cy,sz]=bboxCenter(id);
   if(!good) el("circle",{cx,cy,r:Math.max(2.5,sz*0.7),fill:"none",stroke:"#e8574f","stroke-width":"1.6",class:"pulse","vector-effect":"non-scaling-stroke"},gOv);
   const st=good?calcStars(3):0;
-  if(good){ sndOK(); say(d.name+"、せいかい"); } else { sndNG(); say("こたえは、"+d.name); }
+  if(good){ sndOK(); sayOK(d.name); } else { sndNG(); sayNG(d.name); }
   const z=FULL.w/(sz*3.2);
   if(z>1.15) zoomTo(cx,cy,Math.min(8,z)); else resetView();
   const html=`<h4>${good?"🎉 せいかい！":"😢 ざんねん…こたえは"} 「${d.name}」</h4>
@@ -810,7 +825,7 @@ function revealMt(i,tap){
     const km=Math.round(tap.dd*111/50)*50;
     head= good?`🎉 せいかい！ 「${m[0]}」`:`😢 おしい！ 「${m[0]}」はここだよ（約${fmt(km)}kmはなれていたよ）`;
   } else head=`😢 こたえは 「${m[0]}」`;
-  if(good){ sndOK(); say(m[0]+"、せいかい"); } else { sndNG(); say("こたえは、"+m[0]); }
+  if(good){ sndOK(); sayOK(m[0]); } else { sndNG(); sayNG(m[0]); }
   const html=`<h4>${head}</h4><div class="facts">
     <div class="row"><span class="tag" style="background:#d9efd2">標高 ${fmt(m[2])}m</span>${m[5].map(nameOf).join("・")}</div>
     <div class="row">${m[7]}</div></div>`;
@@ -858,7 +873,7 @@ function revealRiver(i,tap){
     if(rr<=1){ good=true; st=calcStars(rr<=.4?3:rr<=.75?2:1); }
     head=good?`🎉 せいかい！ 「${r[0]}」`:`😢 おしい！ 「${r[0]}」はこの青い線だよ`;
   } else head=`😢 こたえは 「${r[0]}」`;
-  if(good){ sndOK(); say(r[0].replace(/（.*）/,"")+"、せいかい"); } else { sndNG(); say("こたえは、"+r[0].replace(/（.*）/,"")); }
+  if(good){ sndOK(); sayOK(r[0].replace(/（.*）/,"")); } else { sndNG(); sayNG(r[0].replace(/（.*）/,"")); }
   const xs=r.pts.map(p=>p[0]), ys=r.pts.map(p=>p[1]);
   const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2, sz=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));
   const z=FULL.w/(sz*2.2); if(z>1.15) zoomTo(cx,cy,Math.min(6,z)); else resetView();
