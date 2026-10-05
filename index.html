@@ -176,7 +176,8 @@ svg.z2 .rvname,svg.z2 .mtname{display:block}
 .pref{vector-effect:none;stroke-width:calc(var(--sw,.8px)*1.2)}
 .pref.un{stroke-width:var(--sw,.8px)}
 .pref.hl{stroke-width:calc(var(--sw,.8px)*2.8)}
-.hit{fill:transparent;cursor:pointer}
+.hit{fill:rgba(255,255,255,.6);stroke:#5d7686;stroke-width:var(--sw,.8px);cursor:pointer}
+svg.wu .hit{opacity:0}
 .flagbig{font-size:60px;line-height:1.1;font-family:"Twemoji Country Flags","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .cflag{font-size:34px;font-family:"Twemoji Country Flags","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .rvhit{vector-effect:non-scaling-stroke;stroke-width:16px}
@@ -434,6 +435,7 @@ function setVB(){
   svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const z=FULL.w/vb.w;
   svg.classList.toggle("z2",z>=1.8);
+  svg.classList.toggle("wu",settings.cont==="世界"&&z<1.8);   // 世界全体では ○ のしるしを隠す
   // 文字・マーカーの大きさ調整は、拡大率が変わったときだけ、描画の合間に1回行う(ドラッグ中は軽くする)
   const k=ppu();
   if(!lastK||Math.abs(k-lastK)/lastK>0.01){
@@ -452,7 +454,7 @@ function updateScaling(){
   }
   for(const c in hitEl){
     const h=D.hit[c], tiny=h[2]*k<8;       // 画面で小さすぎる国だけ、タッチ用の小さな丸をつける
-    hitEl[c].setAttribute("r",tiny?(Math.max(6,h[2]*k/2+3)/k).toFixed(2):0);
+    hitEl[c].setAttribute("r",tiny?(Math.max(9,h[2]*k/2+4)/k).toFixed(2):0);
     hitEl[c].style.pointerEvents=tiny?"":"none";
   }
   const fz=(10.5/k).toFixed(2);
@@ -538,6 +540,15 @@ function toast(msg,ms=1600){
   clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove("on"),ms);
 }
 let curEls=[];
+// 画面で小さな国かどうか(見かけの大きさが24px未満)
+function isTiny(c){ return D.hit[c][2]*ppu()<24; }
+function pxDist(c,x,y){ const h=D.hit[c]; return Math.hypot(h[0]-x,h[1]-y)*ppu(); }
+// タッチした場所の近く(px以内)にある小さな国のうち、いちばん近いもの
+function tinyNear(x,y,px){
+  let best=null,bd=px;
+  for(const c in hitEl){ if(!isTiny(c)) continue; const d=pxDist(c,x,y); if(d<=bd){ bd=d; best=c; } }
+  return best;
+}
 function pidOf(t){
   for(const n of curEls){ const e=n.closest&&n.closest("[data-pid]"); if(e) return e.dataset.pid; }
   return null;
@@ -766,14 +777,18 @@ function askCountry(){
   $("#btnSkip").onclick=()=>{ if(!Q.done) revealCountry(id,false); };
   tapHandler=(x,y,t)=>{
     if(Q.done) return;
-    const pid=pidOf(t);
+    // 答えが小さな国のときは、その近く(指の太さぶん)をタッチしても正解にする
+    if(isTiny(id) && pxDist(id,x,y)<=24){ revealCountry(id,true); return; }
+    const pid=tinyNear(x,y,14)||pidOf(t);
     if(!pid){ toast("そこは海だよ 🌊"); return; }
     if(pid===id){ revealCountry(id,true); return; }
     Q.tries++; sndNG();
     const p=prefEl[pid]; p.classList.remove("flash"); void p.getBoundingClientRect(); p.classList.add("flash");
+    if(hitEl[pid]) { hitEl[pid].style.fill="rgba(232,87,79,.6)"; setTimeout(()=>{ hitEl[pid].style.fill=""; },700); }
     toast(`そこは「${nameOf(pid)}」だよ。もういちど！`);
     if(Q.tries>=3) revealCountry(id,false);
   };
+  if(isTiny(id)) setTimeout(()=>{ if(Q&&!Q.done) toast("とても小さな国だよ。拡大して ○ のしるしをさがしてみよう",3200); },400);
 }
 function revealCountry(id,good){
   const d=P[id];
@@ -937,7 +952,7 @@ function startAtlasTap(){
       box.innerHTML=`<div class="res good"><h4>${r[4]} ${r[0]}（${r[1]}）</h4><div class="facts"><div class="row"><span class="tag" style="background:#cfe9fb">長さ ${fmt(r[2])}km</span>${r[3].map(nameOf).join("・")} → ${r[6]}</div><div class="row">${r[5]}</div></div></div>`;
       say(r[0].replace(/（.*）/,"")); return;
     }
-    const pid=pidOf(t);
+    const pid=tinyNear(x,y,16)||pidOf(t);
     if(pid){
       highlightPrefs([pid],false);
       const d=P[pid];
